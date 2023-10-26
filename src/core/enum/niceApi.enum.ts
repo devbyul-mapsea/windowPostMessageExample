@@ -1,0 +1,7 @@
+export enum NICE_API_TYPE_ENUM {
+  EMPTY,
+  SIGNUP,
+  FINDID,
+  FINDPWD,
+  UPDATEPHONE,
+}

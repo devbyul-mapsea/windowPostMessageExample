@@ -1,41 +1,37 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-type INiceApiTokenResultKey =
-  | "enc_data"
-  | "integrity_value"
-  | "token_version_id";
-interface INiceApiTokenResult {
-  [key: string]: string;
-  enc_data: string;
-  integrity_value: string;
-  token_version_id: string;
-}
-
-const local_redirectUrl = "http://127.0.0.1:3000/success";
-const local_apiUrl = "http://127.0.0.1:4100/api/nice/pass/encrypted";
-
-const redirectUrl = local_redirectUrl;
-const apiUrl = local_apiUrl;
+import { useEffect, useRef, useState } from "react";
+import NiceApiInstance from "../core/api/nice";
+import { INiceApiTokenResult } from "../core/interface/INiceApi.interface";
+import { INiceApiTokenResultKey } from "../core/type/niceApi.type";
+import { NICE_API_TYPE_ENUM } from "../core/enum/niceApi.enum";
 
 function Button() {
+  const ref = useRef();
+  const NiceApi = new NiceApiInstance();
   const [niceToken, setNiceToken] = useState<INiceApiTokenResult>({
     enc_data: "",
     integrity_value: "",
     token_version_id: "",
   });
+
+  // OpenApi Result Data [name, email, hash, phone]
   const [name, setName] = useState<string>();
+  const [email, setEmail] = useState<string>();
+  const [hash, setHash] = useState<string>();
+  const [phone, setPhone] = useState<string>();
+
+  // window.open Value
   const [popup, setPopup] = useState<Window | null>();
+
+  // window Event Status
+  const [eventStatus, setEventStatus] = useState<boolean>(false);
 
   /**
    * [GET] NiceToken
    */
   const getNiceApiEncryptedDataHandler = async () => {
-    const url = new URL(apiUrl);
-    url.searchParams.append("redirect", redirectUrl);
-
     try {
-      const { data } = await axios.get(url.href);
-      const { enc_data, integrity_value, token_version_id } = data;
+      const { enc_data, integrity_value, token_version_id } =
+        await NiceApi.getPassEncryptedData(NICE_API_TYPE_ENUM.SIGNUP);
       setNiceToken({ enc_data, integrity_value, token_version_id });
     } catch (error) {
       console.error("getNiceApiEncryptedDataHandler Error : ", error);
@@ -76,24 +72,6 @@ function Button() {
   };
 
   /**
-   * Message Event
-   */
-  const addEventHandler = () => {
-    window.addEventListener("message", receiveMessageEvent, false);
-  };
-  /**
-   * Message Event Callback Function - message receive event
-   */
-  const receiveMessageEvent = (event: MessageEvent) => {
-    if (event.origin !== "http://localhost:3000") {
-      console.log("evnt origin is not localhost:3000!!!!!");
-      return;
-    }
-    const getMessage = event.data;
-    console.log("getMessage : ", getMessage);
-  };
-
-  /**
    * Nice Token Validation
    */
   const isEmptyNiceToken = () => {
@@ -116,10 +94,37 @@ function Button() {
   };
 
   /**
+   * Message Event Callback Function - message receive event
+   */
+  const receiveMessageEvent = (event: MessageEvent) => {
+    if (event.origin !== "http://127.0.0.1:3000") {
+      console.log(
+        "event origin is not http://127.0.0.1:3000!!!!! origin : ",
+        event.origin
+      );
+      return;
+    }
+    const getMessage = event.data;
+    if (typeof getMessage === "string") {
+      const data = JSON.parse(getMessage);
+      console.log("data : ", data);
+
+      const { type } = data;
+      if (type == NICE_API_TYPE_ENUM.SIGNUP) {
+        const { name } = data;
+        setName(name);
+      }
+    }
+  };
+
+  /**
    * Message Event Init
    */
   useEffect(() => {
-    addEventHandler();
+    window.addEventListener("message", receiveMessageEvent, false);
+    return () => {
+      window.removeEventListener("message", receiveMessageEvent, false);
+    };
   }, []);
 
   /**
@@ -145,6 +150,13 @@ function Button() {
 
     return () => clearInterval(popupCloseEvent);
   }, [popup, niceToken]);
+
+  /**
+   * Test
+   */
+  useEffect(() => {
+    console.log({ name, email, hash, phone });
+  }, [name, email, hash, phone]);
   return (
     <article>
       <section>
@@ -158,7 +170,21 @@ function Button() {
       </section>
       <section>
         <br />
-        <input type="text" value={name} disabled />
+        <p>
+          name : <input type="text" value={name} disabled />{" "}
+        </p>
+        <br />
+        <p>
+          email : <input type="text" value={email} disabled />{" "}
+        </p>
+        <br />
+        <p>
+          hash(user_idx) : <input type="text" value={hash} disabled />{" "}
+        </p>
+        <br />
+        <p>
+          phone : <input type="text" value={phone} disabled />{" "}
+        </p>
       </section>
       <br />
     </article>
