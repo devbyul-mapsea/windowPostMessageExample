@@ -14,24 +14,24 @@ const env = {
   },
   redirectUrl: {
     signUp: {
-      success: `${serverUrl}sign-up/success`,
+      success: `${serverUrl}success`,
       fail: `${serverUrl}fail`,
-      type: 1,
+      req_type: 1,
     },
     findId: {
-      success: `${serverUrl}find-id/success`,
+      success: `${serverUrl}success`,
       fail: `${serverUrl}fail`,
-      type: 2,
+      req_type: 2,
     },
     findPwd: {
-      success: `${serverUrl}find-pwd/success`,
+      success: `${serverUrl}success`,
       fail: `${serverUrl}fail`,
-      type: 3,
+      req_type: 3,
     },
     updatePhone: {
-      success: `${serverUrl}update-phone/success`,
+      success: `${serverUrl}success`,
       fail: `${serverUrl}fail`,
-      type: 4,
+      req_type: 4,
     },
   },
 };

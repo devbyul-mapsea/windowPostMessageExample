@@ -8,7 +8,8 @@ export interface INiceApiTokenResult {
 export interface IGetPassEncryptedDataBody {
   success: string;
   fail: string;
-  type: number;
+  req_type: number;
+  user_type: number;
 }
 
 export interface INiceApiSignUpResultQuery {

@@ -6,6 +6,7 @@ import {
 import { IQueryString } from "../interface/IAxios.interface";
 import { NICE_API_TYPE_ENUM } from "../enum/niceApi.enum";
 import env from "../config/env";
+import { SSO_USER_TYPE } from "../enum/sso.enum";
 
 export default class NiceApiInstance {
   private API: AxiosInstance;
@@ -36,12 +37,16 @@ export default class NiceApiInstance {
     return apiUrl.toString();
   };
 
-  private getRedirectUrl = (
-    type: NICE_API_TYPE_ENUM
-  ): IGetPassEncryptedDataBody => {
+  private getRedirectUrl = ({
+    userType,
+    reqType,
+  }: {
+    userType: SSO_USER_TYPE;
+    reqType: NICE_API_TYPE_ENUM;
+  }): IGetPassEncryptedDataBody => {
     let body;
     try {
-      switch (type) {
+      switch (reqType) {
         case NICE_API_TYPE_ENUM.SIGNUP:
           body = env.redirectUrl.signUp;
           break;
@@ -58,20 +63,28 @@ export default class NiceApiInstance {
           throw new Error("알맞은 type이 반환되지 않았습니다.");
       }
 
-      return body;
+      return { ...body, user_type: userType };
     } catch (error) {
       throw error;
     }
   };
 
-  public getPassEncryptedData = async (
-    type: NICE_API_TYPE_ENUM
-  ): Promise<INiceApiTokenResult> => {
+  public getPassEncryptedData = async ({
+    userType,
+    reqType,
+  }: {
+    userType: SSO_USER_TYPE;
+    reqType: NICE_API_TYPE_ENUM;
+  }): Promise<INiceApiTokenResult> => {
     try {
       const url = this.setApiUrl({
         apiPath: env.openApi.getPassEncryptedData.url,
       });
-      const body: IGetPassEncryptedDataBody = this.getRedirectUrl(type);
+
+      const body: IGetPassEncryptedDataBody = this.getRedirectUrl({
+        userType,
+        reqType,
+      });
       const { data } = await this.API.post(url, body);
 
       return data;

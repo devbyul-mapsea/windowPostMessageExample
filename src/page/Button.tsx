@@ -1,37 +1,58 @@
-import { useEffect, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import NiceApiInstance from "../core/api/nice";
 import { INiceApiTokenResult } from "../core/interface/INiceApi.interface";
 import { INiceApiTokenResultKey } from "../core/type/niceApi.type";
 import { NICE_API_TYPE_ENUM } from "../core/enum/niceApi.enum";
+import { SSO_USER_TYPE } from "../core/enum/sso.enum";
 
 function Button() {
-  const ref = useRef();
   const NiceApi = new NiceApiInstance();
+  const [tokenVersionId, setTokenVersionId] = useState<string>();
   const [niceToken, setNiceToken] = useState<INiceApiTokenResult>({
     enc_data: "",
     integrity_value: "",
     token_version_id: "",
   });
 
+  const [reqType, setreqType] = useState<NICE_API_TYPE_ENUM>(
+    NICE_API_TYPE_ENUM.EMPTY
+  );
+  const [userType, setUserType] = useState<SSO_USER_TYPE>(SSO_USER_TYPE.USER);
+
   // OpenApi Result Data [name, email, hash, phone]
   const [name, setName] = useState<string>();
-  const [email, setEmail] = useState<string>();
-  const [hash, setHash] = useState<string>();
+  const [findEmail, setFindEmail] = useState<{
+    userType: string;
+    email: string;
+  }>({
+    userType: "",
+    email: "",
+  });
+  const [findPwd, setFindPwd] = useState<{
+    userType: string;
+    encrypted: string;
+    key: string;
+    iv: string;
+  }>({
+    userType: "",
+    encrypted: "",
+    key: "",
+    iv: "",
+  });
   const [phone, setPhone] = useState<string>();
 
   // window.open Value
   const [popup, setPopup] = useState<Window | null>();
-
-  // window Event Status
-  const [eventStatus, setEventStatus] = useState<boolean>(false);
 
   /**
    * [GET] NiceToken
    */
   const getNiceApiEncryptedDataHandler = async () => {
     try {
+      const getPassEncryptedDataParam = { userType, reqType };
+
       const { enc_data, integrity_value, token_version_id } =
-        await NiceApi.getPassEncryptedData(NICE_API_TYPE_ENUM.SIGNUP);
+        await NiceApi.getPassEncryptedData(getPassEncryptedDataParam);
       setNiceToken({ enc_data, integrity_value, token_version_id });
     } catch (error) {
       console.error("getNiceApiEncryptedDataHandler Error : ", error);
@@ -46,6 +67,7 @@ function Button() {
     if (form) {
       niceApiPopupOpenHandler(form);
       setNiceToken({ enc_data: "", integrity_value: "", token_version_id: "" });
+      setTokenVersionId(niceToken.token_version_id);
     }
   };
 
@@ -109,12 +131,42 @@ function Button() {
       const data = JSON.parse(getMessage);
       console.log("data : ", data);
 
-      const { type } = data;
-      if (type == NICE_API_TYPE_ENUM.SIGNUP) {
+      const { req_type } = data;
+      if (req_type == NICE_API_TYPE_ENUM.SIGNUP) {
         const { name } = data;
         setName(name);
       }
+      if (req_type == NICE_API_TYPE_ENUM.FINDID) {
+        const { user_type, email } = data;
+        setFindEmail({ userType: user_type, email });
+      }
+      if (req_type == NICE_API_TYPE_ENUM.FINDPWD) {
+        console.log("FINDPWD : ", data);
+        const { user_type, encrypted, key, iv } = data;
+        setFindPwd({ userType: user_type, encrypted, key, iv });
+      }
+      if (req_type == NICE_API_TYPE_ENUM.UPDATEPHONE) {
+        console.log("UPDATEPHONE : ", data);
+        const { phone } = data;
+        setPhone(phone);
+      }
     }
+  };
+
+  /**
+   * Request Nice Type [ Sign Up / Find Id / Find Pwd / Update Phone Number ]
+   */
+  const setreqTypeHandler = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = Number(e.target.value);
+    setreqType(value);
+  };
+
+  /**
+   * Request User Type [ User / Company ]
+   */
+  const setUserTypeHandler = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = Number(e.target.value);
+    setUserType(value);
   };
 
   /**
@@ -134,7 +186,16 @@ function Button() {
     if (isEmptyNiceToken()) {
       getNiceApiEncryptedDataHandler();
     }
-  }, []);
+  }, [niceToken]);
+
+  /**
+   * Get Nice Token Init
+   */
+  useEffect(() => {
+    if (reqType !== NICE_API_TYPE_ENUM.EMPTY) {
+      getNiceApiEncryptedDataHandler();
+    }
+  }, [reqType]);
 
   /**
    * Get Nice Token Reset
@@ -155,10 +216,34 @@ function Button() {
    * Test
    */
   useEffect(() => {
-    console.log({ name, email, hash, phone });
-  }, [name, email, hash, phone]);
+    console.log({ name, findEmail, findPwd, phone });
+  }, [name, findEmail, findPwd, phone]);
   return (
     <article>
+      <div style={{ display: "flex", gap: "20px" }}>
+        <section>
+          <p>Nice Token Type</p>
+          <select onChange={setreqTypeHandler}>
+            <option value={NICE_API_TYPE_ENUM.EMPTY} defaultChecked>
+              EMPTY
+            </option>
+            <option value={NICE_API_TYPE_ENUM.SIGNUP}>SIGNUP</option>
+            <option value={NICE_API_TYPE_ENUM.FINDID}>FINDID</option>
+            <option value={NICE_API_TYPE_ENUM.FINDPWD}>FINDPWD</option>
+            <option value={NICE_API_TYPE_ENUM.UPDATEPHONE}>UPDATEPHONE</option>
+          </select>
+        </section>
+        <section>
+          <p>User Type</p>
+          <select onChange={setUserTypeHandler}>
+            <option value={SSO_USER_TYPE.USER} defaultChecked>
+              USER
+            </option>
+            <option value={SSO_USER_TYPE.COMPANY}>COMPANY</option>
+          </select>
+        </section>
+      </div>
+
       <section>
         <form name="nice_form" id="form">
           <input type="hidden" id="m" name="m" />
@@ -166,27 +251,81 @@ function Button() {
           <input type="hidden" id="enc_data" name="enc_data" />
           <input type="hidden" id="integrity_value" name="integrity_value" />
         </form>
-        <button onClick={redirectHandler}>휴대폰 번호로 본인인증 하기</button>
+        <button
+          onClick={redirectHandler}
+          disabled={reqType === NICE_API_TYPE_ENUM.EMPTY}
+        >
+          휴대폰 번호로 본인인증 하기
+        </button>
       </section>
       <section>
-        <br />
         <p>
+          token_version_id :{" "}
+          <input type="text" value={niceToken.token_version_id} />
+          token_version_id : <input type="text" value={tokenVersionId} />
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "50%",
+            gap: "10px",
+          }}
+        >
+          <h1>SIGNUP</h1>
           name : <input type="text" value={name} disabled />{" "}
-        </p>
-        <br />
-        <p>
-          email : <input type="text" value={email} disabled />{" "}
-        </p>
-        <br />
-        <p>
-          hash(user_idx) : <input type="text" value={hash} disabled />{" "}
-        </p>
-        <br />
-        <p>
-          phone : <input type="text" value={phone} disabled />{" "}
-        </p>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "50%",
+            gap: "10px",
+          }}
+        >
+          <h1>FINDID</h1>
+          user_type : <input
+            type="text"
+            value={findEmail.userType}
+            disabled
+          />{" "}
+          email : <input type="text" value={findEmail.email} disabled />{" "}
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "50%",
+            gap: "10px",
+          }}
+        >
+          <h1>FINDPWD</h1>
+          user_type : <input
+            type="text"
+            value={findPwd.userType}
+            disabled
+          />{" "}
+          hash : encrypted :{" "}
+          <input type="text" value={findPwd.encrypted} disabled /> hash : key :{" "}
+          <input type="text" value={findPwd.key} disabled /> hash : iv :{" "}
+          <input type="text" value={findPwd.iv} disabled /> hash : hmac :{" "}
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "50%",
+            gap: "10px",
+          }}
+        >
+          <h1>UPDATEPHONE</h1>
+          phone : <input type="tel" value={phone} disabled />{" "}
+        </div>
       </section>
-      <br />
     </article>
   );
 }
