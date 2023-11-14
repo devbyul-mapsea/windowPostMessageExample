@@ -36,8 +36,10 @@ function Success() {
     }
     if (Number(req_type) === NICE_API_TYPE_ENUM.UPDATEPHONE) {
       const phone = searchParams.get("phone") as string;
+      const mobile_carrier = searchParams.get("mobile_carrier") as string;
+      const ci = searchParams.get("ci") as string;
 
-      set_data = { req_type, phone };
+      set_data = { req_type, phone, mobile_carrier, ci };
     }
 
     setQuery(set_data);

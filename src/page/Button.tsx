@@ -1,12 +1,14 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, MouseEvent, useEffect, useState } from "react";
 import NiceApiInstance from "../core/api/nice";
 import { INiceApiTokenResult } from "../core/interface/INiceApi.interface";
 import { INiceApiTokenResultKey } from "../core/type/niceApi.type";
 import { NICE_API_TYPE_ENUM } from "../core/enum/niceApi.enum";
 import { SSO_USER_TYPE } from "../core/enum/sso.enum";
+import MapseaApiInstance from "../core/api/mapsea";
 
 function Button() {
   const NiceApi = new NiceApiInstance();
+  const MapseaApi = new MapseaApiInstance();
   const [tokenVersionId, setTokenVersionId] = useState<string>();
   const [niceToken, setNiceToken] = useState<INiceApiTokenResult>({
     enc_data: "",
@@ -39,7 +41,11 @@ function Button() {
     key: "",
     iv: "",
   });
-  const [phone, setPhone] = useState<string>();
+  const [updatePhone, setUpdatePhone] = useState<{
+    phone: string;
+  }>({
+    phone: "",
+  });
 
   // window.open Value
   const [popup, setPopup] = useState<Window | null>();
@@ -148,7 +154,7 @@ function Button() {
       if (req_type == NICE_API_TYPE_ENUM.UPDATEPHONE) {
         console.log("UPDATEPHONE : ", data);
         const { phone } = data;
-        setPhone(phone);
+        setUpdatePhone({ phone });
       }
     }
   };
@@ -169,6 +175,37 @@ function Button() {
     setUserType(value);
   };
 
+  /**
+   * API Test 용 핸들러
+   */
+  const apiTestHandler = async () => {
+    try {
+      const { act } = await MapseaApi.signin();
+      const { provider, terms, user_info } = await MapseaApi.getUserInfo(act);
+
+      console.log("signin : ", { act });
+      console.log("getUserInfo : ", { provider, terms, user_info });
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
+   * 휴대폰 연락처 본인인증
+   */
+  const checkCiValidationHanlder = async (e: MouseEvent<HTMLInputElement>) => {
+    try {
+      if (tokenVersionId) {
+        const { act } = await MapseaApi.signin();
+        await MapseaApi.updatePhone(act, tokenVersionId);
+      } else {
+        throw new Error("휴대폰 인증을 진행해주세요");
+      }
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  };
   /**
    * Message Event Init
    */
@@ -216,10 +253,15 @@ function Button() {
    * Test
    */
   useEffect(() => {
-    console.log({ name, findEmail, findPwd, phone });
-  }, [name, findEmail, findPwd, phone]);
+    console.log({ name, findEmail, findPwd, updatePhone });
+  }, [name, findEmail, findPwd, updatePhone]);
   return (
     <article>
+      <input
+        type="button"
+        onClick={apiTestHandler}
+        value="API 테스트 유효성 검사"
+      />
       <div style={{ display: "flex", gap: "20px" }}>
         <section>
           <p>Nice Token Type</p>
@@ -323,7 +365,13 @@ function Button() {
           }}
         >
           <h1>UPDATEPHONE</h1>
-          phone : <input type="tel" value={phone} disabled />{" "}
+          <span>phone : </span>
+          <input type="tel" value={updatePhone.phone} disabled />
+          <input
+            type="button"
+            onClick={checkCiValidationHanlder}
+            value="CI 유효성 검사"
+          />
         </div>
       </section>
     </article>
